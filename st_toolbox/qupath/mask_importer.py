@@ -19,10 +19,23 @@ from .coregistration import CoRegistrationData
 from st_toolbox import BinaryMask
 
 
-@dataclass
-class MaskNameSplitter:
-    split_string: str
-    mask_type_index: int
+class MaskNameSplitterInterface:
+    """
+    Interface for splitting the input / path strings into meaningfull mask class names
+    Implement function get_mask_name and pass class in as parameter mask_name_splitter into QuPathBinMaskImporter
+    Look at DefaultMaskNameSplitter class for an example
+    """
+    @staticmethod
+    def get_mask_name(input_str: str) -> str:
+        pass
+
+class DefaultMaskNameSplitter(MaskNameSplitterInterface):
+    @staticmethod
+    def get_mask_name(input_str: str) -> str:
+        if input_str.split('_')[-3] == "Annotation":
+            return input_str.split('_')[-2]
+        else:
+            return '_'.join([input_str.split('_')[-2], input_str.split('_')[-3]])
 
 
 class QuPathBinMaskImporter(QuPathBaseImporter):
@@ -33,18 +46,19 @@ class QuPathBinMaskImporter(QuPathBaseImporter):
     def __init__(self,
                  qp_export_file_path: str,
                  output_folder: str,
-                 co_registration_data: CoRegistrationData,
-                 mask_name_splitter: MaskNameSplitter = None):
+                 co_registration_data: CoRegistrationData = None,
+                 mask_name_splitter: MaskNameSplitterInterface = None,
+                 name: str = None):
         super().__init__(qp_export_file_path=qp_export_file_path,
                          output_folder=output_folder,
-                         co_registration_data=co_registration_data)
+                         co_registration_data=co_registration_data,
+                         name=name)
         if mask_name_splitter is None:
-            self.mask_name_splitter = MaskNameSplitter(
-                split_string='_',
-                mask_type_index=-2
-            )
-        else:
+            self.mask_name_splitter = DefaultMaskNameSplitter
+        elif issubclass(mask_name_splitter, MaskNameSplitterInterface):
             self.mask_name_splitter = mask_name_splitter
+        else:
+            raise ValueError("mask_name_splitter has to be a subclass of MaskNameSplitterInterface")
 
         self._mask_type = None
         self.img = None
@@ -52,9 +66,9 @@ class QuPathBinMaskImporter(QuPathBaseImporter):
 
     @property
     def mask(self) -> BinaryMask:
-        if self._mask_type is not None:
+        if self.mask_type is not None:
             return BinaryMask(
-                name=self._mask_type,
+                name=self.mask_type,
                 path=self.output_file_path,
                 img=self.img
             )
@@ -66,8 +80,11 @@ class QuPathBinMaskImporter(QuPathBaseImporter):
 
     def _child_run(self) -> bool:
         moving_img = cv2.imread(self.qp_export_file_path, cv2.IMREAD_GRAYSCALE)
-        transformed_img = cv2.warpPerspective(moving_img, self.co_registration_data.transform_matrix, (self.co_registration_data.target_w, self.co_registration_data.target_h))
-        out_file_name = os.path.join(self.output_folder, 'process_out_{}_mask_{}.png'.format(self.co_registration_data.name, self.mask_type))
+        if self.co_registration_data is not None:
+            transformed_img = cv2.warpPerspective(moving_img, self.co_registration_data.transform_matrix, (self.co_registration_data.target_w, self.co_registration_data.target_h))
+        else:
+            transformed_img = moving_img
+        out_file_name = os.path.join(self.output_folder, 'process_out_{}_mask_{}.png'.format(self.name, self.mask_type))
         cv2.imwrite(out_file_name, transformed_img)
         self.img = transformed_img
         self.output_file_path = out_file_name
@@ -75,19 +92,26 @@ class QuPathBinMaskImporter(QuPathBaseImporter):
 
     @property
     def mask_type(self) -> str:
-        if self._mask_type is None:
-            self._mask_type = self.qp_export_file_path.split(self.mask_name_splitter.split_string)[self.mask_name_splitter.mask_type_index]
+        if self._mask_type is None and self.qp_export_file_path is not None:
+            self._mask_type = self.mask_name_splitter.get_mask_name(self.qp_export_file_path)
         return self._mask_type
 
     @staticmethod
-    def batch_import(qp_export_path_list: List[str], co_registration_data_list: List[CoRegistrationData],
-                           output_folder: str, mask_name_splitter: MaskNameSplitter = None) -> List['QuPathBinMaskImporter']:
+    def batch_import(qp_export_path_list: List[str],
+                     output_folder: str, mask_name_splitter: MaskNameSplitterInterface = None,
+                     co_registration_data_list: List[CoRegistrationData] = None,
+                     names: List[str] = None) -> List['QuPathBinMaskImporter']:
         qp_mask_imps = []
-        for qp, co_reg_data in zip(qp_export_path_list, co_registration_data_list):
+        if co_registration_data_list is None:
+            co_registration_data_list = [None for i in range(0, len(qp_export_path_list))]
+        if names is None:
+            names = [None for i in range(0, len(qp_export_path_list))]
+        for qp, co_reg_data, name in zip(qp_export_path_list, co_registration_data_list, names):
             qp_mask_imps.append(QuPathBinMaskImporter(qp_export_file_path=qp,
                                                       output_folder=output_folder,
                                                       co_registration_data=co_reg_data,
-                                                      mask_name_splitter=mask_name_splitter))
+                                                      mask_name_splitter=mask_name_splitter,
+                                                      name=name))
             qp_mask_imps[-1].run()
         return qp_mask_imps
 

@@ -306,11 +306,13 @@ class SpaceRangerSpots:
 
 
 class SpaceRangerImporter:
-    def __init__(self, paths: SpaceRangerPaths, df_col_names: DataFrameColumnNames = DataFrameColumnNames()):
+    def __init__(self, paths: SpaceRangerPaths, df_col_names: DataFrameColumnNames = DataFrameColumnNames(),
+                 use_hires_img: bool = True):
         self._data = SpaceRangerRun(name=paths.name,
                                     paths=paths)
         self._df_col_names = df_col_names
         self._df_reads_col_names: pd.Index = None
+        self._use_highres_img: bool = use_hires_img
         self._tissue_pos_csv_col_names = [self._df_col_names.BARCODE,
                                           self._df_col_names.SPCRNG_TISSUE,
                                           self._df_col_names.SPOT_ROW,
@@ -333,13 +335,18 @@ class SpaceRangerImporter:
     @property
     def spots(self) -> SpaceRangerSpots:
         if self._data.df is not None:
-            diameter = self._data.scale_factors.spot_diameter_fullres * self._data.scale_factors.tissue_hires_scalef
+            if self._use_highres_img:
+                diameter = self._data.scale_factors.spot_diameter_fullres
+                sf = 1
+            else:
+                diameter = self._data.scale_factors.spot_diameter_fullres * self._data.scale_factors.tissue_hires_scalef
+                sf = self._data.scale_factors.tissue_hires_scalef
             return SpaceRangerSpots(barcodes=self._data.df.index.to_list(),
                                     slide_id=self._data.name,
                                     img_rows=self._data.df[self._df_col_names.SPOT_IMG_ROW].to_list(),
                                     img_cols=self._data.df[self._df_col_names.SPOT_IMG_COL].to_list(),
                                     diameter_px=diameter,
-                                    img_scalefactors=self._data.scale_factors.tissue_hires_scalef,
+                                    img_scalefactors=sf,
                                     reads=[row[1] for row in self._data.df[self._df_reads_col_names].iterrows()],
                                     img=cv2.cvtColor(src=cv2.imread(self._data.paths.tissue_hires_img,
                                                                     cv2.IMREAD_COLOR),
@@ -375,8 +382,13 @@ class SpaceRangerImporter:
         _df.columns = self._tissue_pos_csv_col_names
         _df = _df.sort_values(self._df_col_names.BARCODE)
         _df = _df.set_index(self._df_col_names.BARCODE)
-        _df[self._df_col_names.SPOT_IMG_ROW] = _df[self._df_col_names.SPOT_IMG_ROW] * self._data.scale_factors.tissue_hires_scalef
-        _df[self._df_col_names.SPOT_IMG_COL] = _df[self._df_col_names.SPOT_IMG_COL] * self._data.scale_factors.tissue_hires_scalef
+        # tissue_hires_img is the unscaled high res input into spaceranger
+        # spaceranger downscales these to largest dim 2000 px max
+        # scalefactor transforms between those
+        # spot img row & col values from csv are in tissue_hires_img scale!
+        if not self._use_highres_img:
+            _df[self._df_col_names.SPOT_IMG_ROW] = _df[self._df_col_names.SPOT_IMG_ROW] * self._data.scale_factors.tissue_hires_scalef
+            _df[self._df_col_names.SPOT_IMG_COL] = _df[self._df_col_names.SPOT_IMG_COL] * self._data.scale_factors.tissue_hires_scalef
         if rows is None:
             return _df
         else:

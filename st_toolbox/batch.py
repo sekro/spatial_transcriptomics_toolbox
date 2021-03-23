@@ -26,10 +26,11 @@ class BatchPaths:
     qp_masks: List[str]
     qp_data: str
     spcrng_paths: SpaceRangerPaths
-    coreg_data: CoRegistrationData
+    coreg_data: CoRegistrationData = None
+    use_qp_hes: bool = False
 
 
-def batch_merge(batches: List[BatchPaths], output_folder: str,
+def batch_merge(batches: List[BatchPaths], output_folder: str, pickle_spots = False,
                 special_mask_names: List[Tuple[str, str]] = None) -> Tuple[List[SpaceRangerSpots],
                                                                            List[QuPathDataObject],
                                                                            List[pd.DataFrame]]:
@@ -44,10 +45,11 @@ def batch_merge(batches: List[BatchPaths], output_folder: str,
         for pair in special_mask_names:
             _special_filter_lst.extend(list(pair))
     for bp in batches:
-
+        logger.info("Starting with {}".format(bp.id))
         _qpms = QuPathBinMaskImporter.batch_import(qp_export_path_list=bp.qp_masks,
                                                    output_folder=os.path.join(output_folder, 'qp_mask_import'),
-                                                   co_registration_data_list=[bp.coreg_data for i in range(0, len(bp.qp_masks))])
+                                                   co_registration_data_list=[bp.coreg_data for i in range(0, len(bp.qp_masks))],
+                                                   names=[bp.id for i in range(0, len(bp.qp_masks))])
         if special_mask_names is None:
             _masks = [q.mask for q in _qpms]
             _excl_mask_pairs = None
@@ -65,14 +67,17 @@ def batch_merge(batches: List[BatchPaths], output_folder: str,
                 ))
         _qpd = QuPathDataImporter(qp_export_file_path=bp.qp_data,
                                   output_folder=os.path.join(output_folder, 'qp_data_import'),
-                                  co_registration_data=bp.coreg_data)
+                                  co_registration_data=bp.coreg_data,
+                                  name=bp.id)
         _qpd.run()
         qpd_collector.append(_qpd.data)
-        _spi = SpaceRangerImporter(paths=bp.spcrng_paths)
+        _spi = SpaceRangerImporter(paths=bp.spcrng_paths, use_hires_img=bp.use_qp_hes)
         _df = _spi.load_data(filtered_data=True)
         spots_collector.append(_spi.spots)
         _hpm = HistoPathMerger(masks=_masks, spots=_spi.spots,
                                exclusive_mask_pairs=_excl_mask_pairs, qp_data=_qpd.data)
         df_collector.append(_hpm.merge())
+        if pickle_spots:
+            SpaceRangerImporter.pickle_spots(_spi.spots, os.path.join(output_folder, 'pickled_spots'))
         logger.info("Done with {}".format(bp.id))
     return spots_collector, qpd_collector, df_collector

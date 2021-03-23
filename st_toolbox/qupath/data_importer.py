@@ -67,10 +67,12 @@ class QuPathDataImporter(QuPathBaseImporter):
     def __init__(self,
                  qp_export_file_path: str,
                  output_folder: str,
-                 co_registration_data: CoRegistrationData):
+                 co_registration_data: CoRegistrationData = None,
+                 name: str = None):
         super().__init__(qp_export_file_path=qp_export_file_path,
                          output_folder=output_folder,
-                         co_registration_data=co_registration_data)
+                         co_registration_data=co_registration_data,
+                         name=name)
         self._qp_json = None
         self.data = None
         self.default_type = ObjectTypes.AREA
@@ -111,17 +113,25 @@ class QuPathDataImporter(QuPathBaseImporter):
         return True
 
     def qp_centroid2centroid(self, qp_centroid_x, qp_centroid_y):
-        return fast_TRS_2d(np.divide(np.array([np.float64(qp_centroid_x),
+        if self.co_registration_data is None:
+            return np.divide(np.array([np.float64(qp_centroid_x),
                                                np.float64(qp_centroid_y)]),
-                                     self.data.downsample),
-                           transform_matrix=self.co_registration_data.transform_matrix,
-                           input_is_point=True)
+                                     self.data.downsample)
+        else:
+            return fast_TRS_2d(np.divide(np.array([np.float64(qp_centroid_x),
+                                                   np.float64(qp_centroid_y)]),
+                                         self.data.downsample),
+                               transform_matrix=self.co_registration_data.transform_matrix,
+                               input_is_point=True)
 
     def qp_poly2poly(self, qp_poly):
         poly = np.zeros((0, 2), dtype=np.float64)
         for point in qp_poly:
             poly = np.append(poly, [[np.float64(point["x"]), np.float64(point["y"])]], axis=0)
-        return fast_TRS_2d(np.divide(poly, self.data.downsample), transform_matrix=self.co_registration_data.transform_matrix)
+        if self.co_registration_data is None:
+            return np.divide(poly, self.data.downsample)
+        else:
+            return fast_TRS_2d(np.divide(poly, self.data.downsample), transform_matrix=self.co_registration_data.transform_matrix)
 
     def qp_annotation2annotation(self, qp_annotation):
         annotation = AnnotationObject(

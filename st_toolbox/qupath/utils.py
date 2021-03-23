@@ -75,3 +75,11 @@ def save_co_registration_data_to_json(datasets: Dict[str, CoRegistrationData], o
     with open(output_file, "w") as data_file:
         json.dump(to_json_tmp, data_file, indent=4, sort_keys=True)
     return json.dumps(to_json_tmp, indent=4, sort_keys=True)
+
+
+def coreg_qp_hes(in_qp_hes_path: str, out_qp_hes_path: str, coregdata: CoRegistrationData) -> bool:
+    moving_img = cv2.imread(in_qp_hes_path, cv2.IMREAD_COLOR)
+    transformed_img = cv2.warpPerspective(moving_img, coregdata.transform_matrix,
+                                          (coregdata.target_w, coregdata.target_h))
+    cv2.imwrite(out_qp_hes_path, transformed_img)
+    return True

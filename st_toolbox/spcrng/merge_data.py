@@ -131,14 +131,18 @@ class HistoPathMerger:
 
     @staticmethod
     def get_scaled_mask(mask: BinaryMask, scale_factor: float) -> BinaryMask:
-        if len(mask.img.shape) == 2:
-            h, w = mask.img.shape
+        if scale_factor != 1:
+            if len(mask.img.shape) == 2:
+                h, w = mask.img.shape
+            else:
+                h, w, c = mask.img.shape
+            h = int(round(h * scale_factor))
+            w = int(round(w * scale_factor))
+            tmp_img = cv2.resize(mask.img, (w, h), interpolation=cv2.INTER_AREA)
+            logger.debug("mask scaling: mask name {} - org shape {} new shape {}".format(mask.name, mask.img.shape, tmp_img.shape))
         else:
-            h, w, c = mask.img.shape
-        h = int(round(h * scale_factor))
-        w = int(round(w * scale_factor))
-        tmp_img = cv2.resize(mask.img, (w, h), interpolation=cv2.INTER_AREA)
-        logger.debug("mask scaling: mask name {} - org shape {} new shape {}".format(mask.name, mask.img.shape, tmp_img.shape))
+            tmp_img = mask.img
+            logger.debug("mask scaling: nothing do to scalefactor == 1")
         return BinaryMask(name=mask.name,
                            img=tmp_img)
 

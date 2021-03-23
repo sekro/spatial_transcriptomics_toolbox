@@ -22,11 +22,17 @@ class QuPathBaseImporter:
     def __init__(self,
                  qp_export_file_path: str,
                  output_folder: str,
-                 co_registration_data: CoRegistrationData):
+                 co_registration_data: CoRegistrationData = None,
+                 name: str = None):
         self.qp_export_file_path = qp_export_file_path
         self.output_folder = output_folder
         self.co_registration_data = co_registration_data
-        self.name = co_registration_data.name
+        if name is not None:
+            self.name = name
+        elif co_registration_data is not None:
+            self.name = co_registration_data.name
+        else:
+            raise ValueError("You need to provide at least either a name or a set of co-registration data for init")
 
     def check(self) -> bool:
         if not os.path.exists(self.output_folder):
@@ -36,7 +42,7 @@ class QuPathBaseImporter:
         else:
             if not os.path.isfile(self.qp_export_file_path):
                 return False
-        if not isinstance(self.co_registration_data, CoRegistrationData):
+        if self.co_registration_data is not None and not isinstance(self.co_registration_data, CoRegistrationData):
             return False
         if not self._child_check():
             return False
