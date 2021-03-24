@@ -73,11 +73,12 @@ def batch_merge(batches: List[BatchPaths], output_folder: str, pickle_spots = Fa
         qpd_collector.append(_qpd.data)
         _spi = SpaceRangerImporter(paths=bp.spcrng_paths, use_hires_img=bp.use_qp_hes)
         _df = _spi.load_data(filtered_data=True)
-        spots_collector.append(_spi.spots)
+
         _hpm = HistoPathMerger(masks=_masks, spots=_spi.spots,
                                exclusive_mask_pairs=_excl_mask_pairs, qp_data=_qpd.data)
         df_collector.append(_hpm.merge())
+        spots_collector.append(_hpm.spots)
         if pickle_spots:
-            SpaceRangerImporter.pickle_spots(_spi.spots, os.path.join(output_folder, 'pickled_spots'))
+            SpaceRangerImporter.pickle_spots(_hpm.spots, os.path.join(output_folder, 'pickled_spots'))
         logger.info("Done with {}".format(bp.id))
     return spots_collector, qpd_collector, df_collector

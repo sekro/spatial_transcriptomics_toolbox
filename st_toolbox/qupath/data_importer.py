@@ -133,9 +133,19 @@ class QuPathDataImporter(QuPathBaseImporter):
         else:
             return fast_TRS_2d(np.divide(poly, self.data.downsample), transform_matrix=self.co_registration_data.transform_matrix)
 
-    def qp_annotation2annotation(self, qp_annotation):
+    def qp_annotation2annotation(self, qp_annotation, cstr: str = None):
+        if cstr is None:
+            common_str = 'Annotation'
+        else:
+            common_str = cstr
+        if qp_annotation["name"] == common_str:
+            name = qp_annotation["className"]
+        elif common_str in qp_annotation["name"]:
+            name = qp_annotation["className"] + qp_annotation["name"].replace(common_str,'')
+        else:
+            name = qp_annotation["className"] + qp_annotation["name"]
         annotation = AnnotationObject(
-            name=qp_annotation["name"],
+            name=name,
             type=self.qp_type2type(qp_annotation["type"]),
             shape=Polygon(
                 centroid=self.qp_centroid2centroid(qp_annotation["shape"]["centroidx"],
