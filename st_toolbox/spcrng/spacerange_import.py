@@ -199,6 +199,13 @@ class SpaceRangerSpots:
             raise ValueError("provided value has to be of type SpaceRangerSpot")
 
     @property
+    def name(self):
+        if len(self._spots) > 0 and isinstance(self._spots[0], SpaceRangerSpot):
+            return self._spots[0].slide_id
+        else:
+            return "unnamed"
+
+    @property
     def qp_data(self) -> QuPathDataObject:
         if self._attached_qp_data is not None:
             return self._attached_qp_data
