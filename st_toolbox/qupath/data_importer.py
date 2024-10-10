@@ -10,6 +10,7 @@ from
 
 import json
 import numpy as np
+import logging
 from dataclasses import dataclass
 from enum import Enum, unique
 
@@ -18,6 +19,7 @@ from .base_importer import QuPathBaseImporter
 from .coregistration import CoRegistrationData
 from .utils import fast_TRS_2d
 
+logger = logging.getLogger(__name__)
 
 @unique
 class ObjectTypes(Enum):
@@ -129,8 +131,10 @@ class QuPathDataImporter(QuPathBaseImporter):
         for point in qp_poly:
             poly = np.append(poly, [[np.float64(point["x"]), np.float64(point["y"])]], axis=0)
         if self.co_registration_data is None:
+            logger.debug("no coreg-data present - downsampling of poly only")
             return np.divide(poly, self.data.downsample)
         else:
+            logger.debug("coregistration and downsampling of poly")
             return fast_TRS_2d(np.divide(poly, self.data.downsample), transform_matrix=self.co_registration_data.transform_matrix)
 
     def qp_annotation2annotation(self, qp_annotation, cstr: str = None):

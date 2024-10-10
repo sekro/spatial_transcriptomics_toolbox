@@ -22,7 +22,7 @@ from st_toolbox import BinaryMask
 from st_toolbox.qupath import QuPathDataObject
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.WARN)
 
 @unique
 class SpaceRangerDataType(Enum):

@@ -9,21 +9,24 @@ import pandas as pd
 import logging
 import os
 from dataclasses import dataclass
-from st_toolbox.qupath import QuPathBinMaskImporter, QuPathDataImporter, QuPathDataObject
+from st_toolbox.qupath import QuPathBinMaskImporter, QuPathDataImporter, QuPathDataObject, MaskNameSplitterInterface
 from st_toolbox.qupath.coregistration import CoRegistrationData
 from st_toolbox.spcrng import SpaceRangerPaths, SpaceRangerImporter, SpaceRangerSpots
 from st_toolbox.spcrng.merge_data import HistoPathMerger, ExclusiveMaskPair
 
-GLOBAL_debug = True
+GLOBAL_debug = False
 logger = logging.getLogger(__name__)
 
 if GLOBAL_debug:
     logging.basicConfig(level=logging.DEBUG)
+else:
+    logging.basicConfig(level=logging.WARN)
 
 @dataclass
 class BatchPaths:
     id: str
     qp_masks: List[str]
+    qp_mask_name_splitter: MaskNameSplitterInterface
     qp_data: str
     spcrng_paths: SpaceRangerPaths
     coreg_data: CoRegistrationData = None
@@ -47,6 +50,7 @@ def batch_merge(batches: List[BatchPaths], output_folder: str, pickle_spots = Fa
     for bp in batches:
         logger.info("Starting with {}".format(bp.id))
         _qpms = QuPathBinMaskImporter.batch_import(qp_export_path_list=bp.qp_masks,
+                                                   mask_name_splitter=bp.qp_mask_name_splitter,
                                                    output_folder=os.path.join(output_folder, 'qp_mask_import'),
                                                    co_registration_data_list=[bp.coreg_data for i in range(0, len(bp.qp_masks))],
                                                    names=[bp.id for i in range(0, len(bp.qp_masks))])

@@ -12,7 +12,7 @@ import numpy as np
 import pandas as pd
 
 from st_toolbox import BinaryMask
-from .spacerange_import import SpaceRangerSpots
+from .spacerange_import import SpaceRangerSpots, SpaceRangerSpot
 from .utils import inside_circle
 from ..qupath.data_importer import QuPathDataObject, CellObject
 
@@ -20,7 +20,7 @@ GLOBAL_debug = True
 logger = logging.getLogger(__name__)
 
 if GLOBAL_debug:
-    logging.basicConfig(level=logging.DEBUG)
+    logging.basicConfig(level=logging.WARN)
 
 
 @dataclass
@@ -170,7 +170,7 @@ class HistoPathMerger:
             masked_spot_fraction = np.sum(img_box & circle_mask ) /np.sum(circle_mask)
         except:
             logger.debug(
-                "spot_center: {}, spot diameter: {}, box_size: {}, half_box_offset".format(spot_center, spot_diameter,
+                "spot_center: {}, spot diameter: {}, box_size: {}, half_box_offset: {}".format(spot_center, spot_diameter,
                                                                                            box_size, half_box_offset))
             logger.debug("img_box: {} shape {}, circle mask: {} shape {}".format(img_box, img_box.shape, circle_mask,
                                                                                  circle_mask.shape))
